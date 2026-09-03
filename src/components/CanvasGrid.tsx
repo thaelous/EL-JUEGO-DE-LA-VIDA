@@ -21,6 +21,21 @@ interface CanvasGridProps {
   onStatsUpdate: () => void;
 }
 
+interface AmbientParticle {
+  tier: 'small' | 'medium' | 'large';
+  x: number; // 0..1 normalized
+  y: number; // 0..1 normalized
+  radius: number;
+  baseAlpha: number;
+  pulseSpeed: number;
+  pulsePhase: number;
+  vx: number;
+  vy: number;
+  waveAmp: number;
+  waveFreq: number;
+  color: 'emerald' | 'mint' | 'teal' | 'cyan' | 'lime' | 'celestial';
+}
+
 export const CanvasGrid: React.FC<CanvasGridProps> = ({
   engine,
   isRunning,
@@ -39,6 +54,7 @@ export const CanvasGrid: React.FC<CanvasGridProps> = ({
   const isPointerDownRef = useRef<boolean>(false);
   const strokeStateRef = useRef<0 | 1>(1); // 1 = paint alive, 0 = erase
   const lastCellRef = useRef<{ x: number; y: number } | null>(null);
+  const pointerCanvasPosRef = useRef<{ x: number; y: number } | null>(null);
 
   // Hover position for coordinates and stamp ghost preview
   const [hoverCoord, setHoverCoord] = useState<{ x: number; y: number } | null>(null);
@@ -50,6 +66,74 @@ export const CanvasGrid: React.FC<CanvasGridProps> = ({
   const frameCountRef = useRef<number>(0);
   const fpsMeasureTimerRef = useRef<number>(performance.now());
   const actualFpsRef = useRef<number>(0);
+  const lastParticleTimeRef = useRef<number>(performance.now());
+
+  // Ambient floating ethereal particles (small, medium, and large)
+  const particlesRef = useRef<AmbientParticle[]>([]);
+  if (particlesRef.current.length === 0) {
+    const colors: ('emerald' | 'mint' | 'teal' | 'cyan' | 'lime' | 'celestial')[] = [
+      'emerald',
+      'mint',
+      'teal',
+      'cyan',
+      'lime',
+      'celestial',
+    ];
+
+    // 1. Large ethereal macro-orbs (sensación etérea profunda tipo bokeh fluido)
+    for (let i = 0; i < 10; i++) {
+      particlesRef.current.push({
+        tier: 'large',
+        x: Math.random(),
+        y: Math.random(),
+        radius: 46 + Math.random() * 50, // 46px a 96px
+        baseAlpha: 0.025 + Math.random() * 0.045, // muy transparente y tenue
+        pulseSpeed: 0.0004 + Math.random() * 0.0008,
+        pulsePhase: Math.random() * Math.PI * 2,
+        vx: (Math.random() - 0.5) * 0.000015,
+        vy: -(0.00001 + Math.random() * 0.000025), // ascenso ultra lento
+        waveAmp: 0.016 + Math.random() * 0.028,
+        waveFreq: 0.0004 + Math.random() * 0.0008,
+        color: colors[Math.floor(Math.random() * colors.length)],
+      });
+    }
+
+    // 2. Medium ethereal bubbles (esferas translúcidas con reborde luminoso sutil)
+    for (let i = 0; i < 18; i++) {
+      particlesRef.current.push({
+        tier: 'medium',
+        x: Math.random(),
+        y: Math.random(),
+        radius: 14 + Math.random() * 18, // 14px a 32px
+        baseAlpha: 0.045 + Math.random() * 0.075, // translúcido y tenue
+        pulseSpeed: 0.0008 + Math.random() * 0.0014,
+        pulsePhase: Math.random() * Math.PI * 2,
+        vx: (Math.random() - 0.5) * 0.000025,
+        vy: -(0.000018 + Math.random() * 0.000045),
+        waveAmp: 0.01 + Math.random() * 0.02,
+        waveFreq: 0.0007 + Math.random() * 0.0012,
+        color: colors[Math.floor(Math.random() * colors.length)],
+      });
+    }
+
+    // 3. Small bioluminescent spores (polvo brillante sutil)
+    for (let i = 0; i < 32; i++) {
+      particlesRef.current.push({
+        tier: 'small',
+        x: Math.random(),
+        y: Math.random(),
+        radius: 1.2 + Math.random() * 3.8, // 1.2px a 5.0px
+        baseAlpha: 0.12 + Math.random() * 0.22,
+        pulseSpeed: 0.0012 + Math.random() * 0.002,
+        pulsePhase: Math.random() * Math.PI * 2,
+        vx: (Math.random() - 0.5) * 0.000035,
+        vy: -(0.000025 + Math.random() * 0.000065),
+        waveAmp: 0.006 + Math.random() * 0.015,
+        waveFreq: 0.0009 + Math.random() * 0.0016,
+        color: colors[Math.floor(Math.random() * colors.length)],
+      });
+    }
+  }
 
   useEffect(() => {
     fpsIntervalRef.current = 1000 / targetFps;
@@ -68,8 +152,15 @@ export const CanvasGrid: React.FC<CanvasGridProps> = ({
       const clickY = clientY - rect.top;
 
       if (clickX < 0 || clickX >= rect.width || clickY < 0 || clickY >= rect.height) {
+        pointerCanvasPosRef.current = null;
         return null;
       }
+
+      // Record canvas pixel space for subtle particle interaction
+      pointerCanvasPosRef.current = {
+        x: clickX * (canvas.width / rect.width),
+        y: clickY * (canvas.height / rect.height),
+      };
 
       const cellWidth = rect.width / engine.cols;
       const cellHeight = rect.height / engine.rows;
@@ -87,10 +178,11 @@ export const CanvasGrid: React.FC<CanvasGridProps> = ({
 
   /**
    * Renders the complete frame:
-   * 1. Bioluminescent petri-dish background
-   * 2. Delicate lab grid lines
-   * 3. 3D organic cellular bubbles (Active, Resting 3-state, and Newborns)
-   * 4. Ghost stamp preview if an active stamp is selected
+   * 1. Animated living petri-dish background (dark green & obsidian black gradients)
+   * 2. Ambient floating & reactive bioluminescent particles
+   * 3. Delicate lab grid lines
+   * 4. 3D organic cellular bubbles (Active, Resting 3-state, and Newborns)
+   * 5. Ghost stamp preview if an active stamp is selected
    */
   const renderFrame = useCallback(() => {
     const canvas = canvasRef.current;
@@ -104,29 +196,197 @@ export const CanvasGrid: React.FC<CanvasGridProps> = ({
     const rows = engine.rows;
     const cellWidth = width / cols;
     const cellHeight = height / rows;
+    const now = performance.now();
 
-    // 1. Clear with Deep Bioluminescent Lab Background
+    // 1. Animated Deep Dark Green & Obsidian Black Background
+    const maxDim = Math.max(width, height);
+    const shiftX1 = width * (0.5 + 0.16 * Math.sin(now * 0.00035));
+    const shiftY1 = height * (0.5 + 0.14 * Math.cos(now * 0.00028));
+
+    // Primary shifting radial gradient
     const bgGrad = ctx.createRadialGradient(
-      width / 2,
-      height / 2,
-      Math.min(width, height) * 0.1,
-      width / 2,
-      height / 2,
-      Math.max(width, height) * 0.75
+      shiftX1,
+      shiftY1,
+      maxDim * 0.06,
+      shiftX1,
+      shiftY1,
+      maxDim * 0.78
     );
-    bgGrad.addColorStop(0, '#0f172a'); // slate-900 center
-    bgGrad.addColorStop(1, '#020617'); // slate-950 edges
+    bgGrad.addColorStop(0, '#032415');    // Verde esmeralda oscuro en el centro
+    bgGrad.addColorStop(0.32, '#02180e'); // Bosque profundo
+    bgGrad.addColorStop(0.68, '#010f08'); // Verde obsidiana tenue
+    bgGrad.addColorStop(1, '#000402');    // Negro profundo
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, width, height);
+
+    // Secondary subtle undulating bio-glow nebula
+    const shiftX2 = width * (0.35 + 0.22 * Math.cos(now * 0.00022));
+    const shiftY2 = height * (0.65 + 0.2 * Math.sin(now * 0.0003));
+    const nebulaGrad = ctx.createRadialGradient(
+      shiftX2,
+      shiftY2,
+      0,
+      shiftX2,
+      shiftY2,
+      maxDim * 0.55
+    );
+    nebulaGrad.addColorStop(0, 'rgba(16, 185, 129, 0.12)'); // Brillo tenue esmeralda
+    nebulaGrad.addColorStop(0.45, 'rgba(5, 46, 22, 0.08)');
+    nebulaGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = nebulaGrad;
+    ctx.fillRect(0, 0, width, height);
+
+    // 2. Ambient Floating & Interactive Particles (Partículas etéreas pequeñas, medianas y grandes)
+    const particles = particlesRef.current;
+    const dt = Math.min(now - lastParticleTimeRef.current, 100);
+    lastParticleTimeRef.current = now;
+    const pointerPos = pointerCanvasPosRef.current;
+
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+
+      // Slow upward and horizontal drift
+      p.y += p.vy * dt;
+      p.x += p.vx * dt;
+
+      // Wrap boundaries seamlessly
+      if (p.y < -0.1) p.y = 1.1;
+      if (p.y > 1.1) p.y = -0.1;
+      if (p.x < -0.1) p.x = 1.1;
+      if (p.x > 1.1) p.x = -0.1;
+
+      // Gentle wave oscillation
+      const wave = Math.sin(now * p.waveFreq + p.pulsePhase) * p.waveAmp;
+      let px = (p.x + wave) * width;
+      let py = p.y * height;
+
+      // Subtle interaction with mouse/touch pointer
+      let interactionGlow = 0;
+      if (pointerPos) {
+        const dx = px - pointerPos.x;
+        const dy = py - pointerPos.y;
+        const dist = Math.hypot(dx, dy);
+        const repelRadius = p.tier === 'large' ? 140 : p.tier === 'medium' ? 110 : 80;
+        if (dist < repelRadius && dist > 0.001) {
+          const force = 1 - dist / repelRadius;
+          const push = p.tier === 'large' ? 10 : p.tier === 'medium' ? 16 : 22;
+          px += (dx / dist) * force * push;
+          py += (dy / dist) * force * push;
+          interactionGlow = force * 0.2;
+        }
+      }
+
+      // Breathing opacity
+      const pulse = Math.sin(now * p.pulseSpeed + p.pulsePhase);
+      const alpha = Math.min(
+        0.85,
+        Math.max(0.015, p.baseAlpha + pulse * (p.baseAlpha * 0.4) + interactionGlow)
+      );
+
+      // Color selection in soft ethereal bioluminescent tones
+      let rgb = '52, 211, 153'; // emerald
+      if (p.color === 'mint') rgb = '110, 231, 183';
+      else if (p.color === 'teal') rgb = '45, 212, 191';
+      else if (p.color === 'cyan') rgb = '103, 232, 249';
+      else if (p.color === 'lime') rgb = '163, 230, 53';
+      else if (p.color === 'celestial') rgb = '167, 243, 208';
+
+      if (p.tier === 'large') {
+        // === PARTÍCULAS GRANDES: Macro-orbes etéreos, transparentes y envolventes ===
+        const outerR = p.radius * 1.6;
+        const grad = ctx.createRadialGradient(
+          px - p.radius * 0.15,
+          py - p.radius * 0.15,
+          0,
+          px,
+          py,
+          outerR
+        );
+        grad.addColorStop(0, `rgba(${rgb}, ${alpha * 1.5})`);
+        grad.addColorStop(0.35, `rgba(${rgb}, ${alpha * 0.8})`);
+        grad.addColorStop(0.7, `rgba(${rgb}, ${alpha * 0.3})`);
+        grad.addColorStop(1, `rgba(${rgb}, 0)`);
+
+        ctx.beginPath();
+        ctx.arc(px, py, outerR, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Delicada membrana etérea exterior ultra-translúcida
+        ctx.beginPath();
+        ctx.arc(px, py, p.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${rgb}, ${alpha * 0.5})`;
+        ctx.lineWidth = 0.75;
+        ctx.stroke();
+
+        // Destello o reflejo sutil en forma de media luna
+        ctx.beginPath();
+        ctx.arc(px, py, p.radius * 0.85, -Math.PI * 0.8, -Math.PI * 0.2);
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.6})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else if (p.tier === 'medium') {
+        // === PARTÍCULAS MEDIANAS: Esferas y burbujas translúcidas con brillo etéreo ===
+        const outerR = p.radius * 1.5;
+        const grad = ctx.createRadialGradient(
+          px - p.radius * 0.1,
+          py - p.radius * 0.1,
+          0,
+          px,
+          py,
+          outerR
+        );
+        grad.addColorStop(0, `rgba(${rgb}, ${alpha * 1.4})`);
+        grad.addColorStop(0.45, `rgba(${rgb}, ${alpha * 0.65})`);
+        grad.addColorStop(0.85, `rgba(${rgb}, ${alpha * 0.2})`);
+        grad.addColorStop(1, `rgba(${rgb}, 0)`);
+
+        ctx.beginPath();
+        ctx.arc(px, py, outerR, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Membrana esférica transparente
+        ctx.beginPath();
+        ctx.arc(px, py, p.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${rgb}, ${alpha * 0.8})`;
+        ctx.lineWidth = 0.85;
+        ctx.stroke();
+
+        // Destello etéreo interior
+        ctx.beginPath();
+        ctx.arc(px - p.radius * 0.25, py - p.radius * 0.25, p.radius * 0.35, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.55})`;
+        ctx.fill();
+      } else {
+        // === PARTÍCULAS PEQUEÑAS: Esporas bioluminiscentes finas ===
+        const haloR = p.radius * 2.4;
+        const haloGrad = ctx.createRadialGradient(px, py, 0, px, py, haloR);
+        haloGrad.addColorStop(0, `rgba(${rgb}, ${alpha * 1.4})`);
+        haloGrad.addColorStop(0.4, `rgba(${rgb}, ${alpha * 0.6})`);
+        haloGrad.addColorStop(1, `rgba(${rgb}, 0)`);
+
+        ctx.beginPath();
+        ctx.arc(px, py, haloR, 0, Math.PI * 2);
+        ctx.fillStyle = haloGrad;
+        ctx.fill();
+
+        // Núcleo brillante
+        ctx.beginPath();
+        ctx.arc(px, py, Math.max(0.8, p.radius * 0.5), 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 1.1})`;
+        ctx.fill();
+      }
+    }
 
     // Selected theme definition
     const theme = COLOR_THEMES.find((t) => t.id === colorTheme) || COLOR_THEMES[0];
     const buffer = engine.getGridBuffer();
     const isThreeState = engine.isThreeState;
 
-    // 2. Draw Subtle Bio-Grid Lines
+    // 3. Draw Subtle Bio-Grid Lines
     if (showGridLines && cellWidth >= 4) {
-      ctx.strokeStyle = 'rgba(51, 65, 85, 0.4)'; // slate-700
+      ctx.strokeStyle = 'rgba(20, 83, 45, 0.35)'; // Tono verde oscuro tenue
       ctx.lineWidth = 0.5;
       ctx.beginPath();
       for (let x = 0; x <= cols; x++) {
@@ -539,7 +799,7 @@ export const CanvasGrid: React.FC<CanvasGridProps> = ({
     <div
       ref={containerRef}
       id="canvas-container"
-      className="relative w-full flex-1 h-[55vh] sm:h-[65vh] lg:h-[calc(100vh-220px)] min-h-[360px] rounded-3xl overflow-hidden bg-slate-950 border-2 border-slate-800/80 shadow-2xl select-none cursor-crosshair touch-none"
+      className="game-stage-container relative w-full flex-1 h-[55vh] sm:h-[65vh] lg:h-[calc(100vh-220px)] min-h-[360px] rounded-3xl overflow-hidden border-2 shadow-2xl select-none cursor-crosshair touch-none transition-all duration-700"
       onContextMenu={(e) => e.preventDefault()}
       onMouseDown={(e) => handlePointerDown(e.clientX, e.clientY, e.button)}
       onMouseMove={(e) => handlePointerMove(e.clientX, e.clientY)}
@@ -547,6 +807,7 @@ export const CanvasGrid: React.FC<CanvasGridProps> = ({
       onMouseLeave={() => {
         handlePointerUp();
         setHoverCoord(null);
+        pointerCanvasPosRef.current = null;
       }}
       onTouchStart={(e) => {
         if (e.touches.length > 0) {

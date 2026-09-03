@@ -1,37 +1,30 @@
-# Juego de la Vida de Conway - Laboratorio Celular 3D ✨
+# El Juego de la Vida de Conway por Robert Pacheco ✨
 
-Simulador visual, interactivo y táctil del **Juego de la Vida de Conway** con renderizado 3D de células tipo microburbujas, soporte para múltiples reglas biológicas y adaptado para móviles, tablets y escritorio.
+Simulador visual, interactivo y táctil del **Juego de la Vida de Conway por Robert Pacheco** con renderizado 3D de células tipo microburbujas, soporte para múltiples reglas biológicas y adaptado para móviles, tablets y escritorio.
 
 ---
 
 ## 🚀 Despliegue en GitHub Pages
 
-Este proyecto utiliza **Vite + React + Tailwind CSS**.
+Este proyecto está preparado en **formato web estándar (HTML5, CSS3 y JavaScript plano)** y también incluye soporte para compilación con Vite. Puedes desplegarlo de dos formas súper sencillas:
 
-### Opción 1: Despliegue Automático con GitHub Actions (Recomendada)
+### Opción 1: Despliegue Directo (Sin compiladores ni dependencias) ⭐ ¡La más fácil!
 
-El repositorio incluye el archivo `.github/workflows/deploy.yml`. Para activar el despliegue automático:
-
-1. Ve a tu repositorio en GitHub.
-2. Entra en **Settings** > **Pages** (en el menú lateral izquierdo).
-3. En la sección **Build and deployment** > **Source**, selecciona **GitHub Actions**.
-4. ¡Listo! Cada vez que hagas `git push` a la rama `main` (o ejecutes el workflow manualmente en la pestaña **Actions**), GitHub construirá la aplicación y la publicará automáticamente en tu URL de GitHub Pages.
+Los archivos en la raíz del repositorio (`index.html`, `style.css` y `app.js`) son **estándar y completamente independientes**:
+1. Sube tu código al repositorio en GitHub.
+2. Ve a **Settings** > **Pages** en tu repositorio.
+3. En **Build and deployment** > **Source**, elige **Deploy from a branch**.
+4. Selecciona la rama `main` (o `master`) y la carpeta `/ (root)`.
+5. Pulsa **Save**. En 1 minuto tu aplicación estará funcionando en vivo sin necesidad de compilar nada.
 
 ---
 
-### Opción 2: Despliegue Manual con los archivos estáticos (`dist/`)
+### Opción 2: Despliegue Automático con GitHub Actions
 
-Si prefieres subir directamente los archivos ya construidos (HTML, CSS y JS):
-
-1. En tu máquina local, ejecuta:
-   ```bash
-   npm install
-   npm run build
-   ```
-2. La carpeta generada **`dist/`** contendrá:
-   - `index.html`
-   - `assets/` (con los archivos compilados de JavaScript y CSS con rutas relativas `./assets/...`)
-3. Puedes subir directamente el contenido de la carpeta `dist/` a una rama llamada `gh-pages` o configurarla en **Settings > Pages > Deploy from a branch**.
+El repositorio incluye el archivo `.github/workflows/deploy.yml`. Si prefieres compilar la versión optimizada:
+1. En GitHub, ve a **Settings** > **Pages**.
+2. En **Build and deployment** > **Source**, selecciona **GitHub Actions**.
+3. GitHub ejecutará el workflow automáticamente y publicará los artefactos de `dist/`.
 
 ---
 

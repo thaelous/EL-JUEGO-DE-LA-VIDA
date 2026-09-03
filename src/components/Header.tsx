@@ -44,8 +44,9 @@ export const Header: React.FC<HeaderProps> = ({
 
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-base sm:text-lg font-heading font-extrabold tracking-tight text-white flex items-center gap-1.5">
-              <span>Juego de la Vida</span>
+            <h1 className="text-base sm:text-lg font-heading font-extrabold tracking-tight text-white flex items-center gap-1.5 flex-wrap">
+              <span>El Juego de la Vida de Conway</span>
+              <span className="text-xs sm:text-sm font-semibold text-pink-400">por Robert Pacheco</span>
               <span className="text-base">✨</span>
             </h1>
 
