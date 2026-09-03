@@ -1,0 +1,8 @@
+{
+  "name": "Juego de la Vida de Conway",
+  "description": "Simulador lúdico e interactivo del Juego de la Vida con renderizado 3D de células orgánicas en Canvas API, soporte para múltiples reglas (Conway, HighLife, Day & Night, Life-3 State) y controles táctiles optimizados para móviles y escritorio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
