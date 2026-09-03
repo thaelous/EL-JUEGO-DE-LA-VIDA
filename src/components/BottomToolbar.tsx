@@ -35,14 +35,14 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
     >
       <nav
         aria-label="Controles Principales"
-        className="pointer-events-auto flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-5 py-2.5 sm:py-3 rounded-full bg-slate-900/90 border border-slate-700/80 shadow-2xl backdrop-blur-xl max-w-fit"
+        className="pointer-events-auto flex items-center justify-center gap-1.5 xs:gap-2 sm:gap-3 px-2 xs:px-3 sm:px-5 py-2 sm:py-3 rounded-full bg-slate-900/95 border border-slate-700/80 shadow-2xl backdrop-blur-xl max-w-full"
       >
         {/* HERO: Play / Pause */}
         <button
           id="btn-main-play"
           type="button"
           onClick={onTogglePlay}
-          className={`flex items-center gap-2 px-5 sm:px-7 py-3 rounded-full text-sm font-heading font-extrabold shadow-lg transition-all duration-200 cursor-pointer active:scale-95 min-h-[48px] ${
+          className={`flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-7 py-2.5 sm:py-3 rounded-full text-xs sm:text-sm font-heading font-extrabold shadow-lg transition-all duration-200 cursor-pointer active:scale-95 min-h-[46px] sm:min-h-[48px] shrink-0 ${
             isRunning
               ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-amber-500/20 hover:from-amber-400 hover:to-orange-400'
               : 'bg-gradient-to-r from-pink-500 via-rose-500 to-indigo-600 text-white shadow-pink-500/30 hover:brightness-110 hover:scale-[1.02] animate-pulse'
@@ -51,12 +51,12 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
         >
           {isRunning ? (
             <>
-              <Pause className="w-5 h-5 fill-current" />
+              <Pause className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
               <span>Pausa</span>
             </>
           ) : (
             <>
-              <Play className="w-5 h-5 fill-current" />
+              <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
               <span>¡Dar Vida!</span>
             </>
           )}
@@ -68,11 +68,11 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
           type="button"
           onClick={onStep}
           disabled={isRunning}
-          className="flex items-center gap-1.5 px-3.5 sm:px-4 py-3 rounded-full bg-slate-800/90 hover:bg-slate-750 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-slate-200 hover:text-white text-xs font-heading font-bold border border-slate-700 shadow-sm cursor-pointer transition-all min-h-[48px]"
+          className="flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-2.5 sm:py-3 rounded-full bg-slate-800/90 hover:bg-slate-750 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-slate-200 hover:text-white text-xs font-heading font-bold border border-slate-700 shadow-sm cursor-pointer transition-all min-h-[44px] min-w-[44px]"
           title="Avanzar 1 generación (Flecha derecha)"
         >
           <SkipForward className="w-4 h-4 text-cyan-400" />
-          <span className="hidden xs:inline">Paso</span>
+          <span className="hidden sm:inline">Paso</span>
         </button>
 
         {/* Limpiar */}
@@ -80,11 +80,11 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
           id="btn-main-clear"
           type="button"
           onClick={onClear}
-          className="flex items-center gap-1.5 px-3.5 sm:px-4 py-3 rounded-full bg-slate-800/90 hover:bg-rose-950/60 active:scale-95 text-slate-200 hover:text-rose-300 text-xs font-heading font-bold border border-slate-700 hover:border-rose-800/50 shadow-sm cursor-pointer transition-all min-h-[48px]"
+          className="flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-2.5 sm:py-3 rounded-full bg-slate-800/90 hover:bg-rose-950/60 active:scale-95 text-slate-200 hover:text-rose-300 text-xs font-heading font-bold border border-slate-700 hover:border-rose-800/50 shadow-sm cursor-pointer transition-all min-h-[44px] min-w-[44px]"
           title="Limpiar toda la placa"
         >
           <RotateCcw className="w-4 h-4 text-rose-400" />
-          <span className="hidden xs:inline">Limpiar</span>
+          <span className="hidden sm:inline">Limpiar</span>
         </button>
 
         {/* Alternar Lápiz / Goma */}
@@ -92,7 +92,7 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
           id="btn-toggle-draw-mode"
           type="button"
           onClick={onDrawModeToggle}
-          className={`flex items-center gap-1.5 px-3.5 sm:px-4 py-3 rounded-full text-xs font-heading font-bold border transition-all active:scale-95 cursor-pointer min-h-[48px] ${
+          className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-2.5 sm:py-3 rounded-full text-xs font-heading font-bold border transition-all active:scale-95 cursor-pointer min-h-[44px] min-w-[44px] ${
             drawMode === 'erase'
               ? 'bg-rose-950/70 border-rose-500/80 text-rose-200 shadow-rose-900/30'
               : 'bg-slate-800/90 border-slate-700 hover:bg-slate-750 text-slate-200'
@@ -117,7 +117,7 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
           id="btn-main-random"
           type="button"
           onClick={onRandomize}
-          className="hidden sm:flex items-center gap-1.5 px-3.5 sm:px-4 py-3 rounded-full bg-slate-800/90 hover:bg-slate-750 active:scale-95 text-slate-200 hover:text-white text-xs font-heading font-bold border border-slate-700 shadow-sm cursor-pointer transition-all min-h-[48px]"
+          className="hidden md:flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-full bg-slate-800/90 hover:bg-slate-750 active:scale-95 text-slate-200 hover:text-white text-xs font-heading font-bold border border-slate-700 shadow-sm cursor-pointer transition-all min-h-[44px]"
           title="Generar sopa de células mágicas al azar"
         >
           <Shuffle className="w-4 h-4 text-teal-400" />
@@ -129,11 +129,11 @@ export const BottomToolbar: React.FC<BottomToolbarProps> = ({
           id="btn-main-settings"
           type="button"
           onClick={onOpenSettings}
-          className="flex items-center gap-2 px-4 sm:px-5 py-3 rounded-full bg-indigo-950/80 hover:bg-indigo-900 active:scale-95 text-indigo-200 hover:text-white text-xs font-heading font-extrabold border border-indigo-500/50 shadow-lg shadow-indigo-500/10 cursor-pointer transition-all min-h-[48px]"
+          className="flex items-center justify-center gap-1.5 px-3 sm:px-5 py-2.5 sm:py-3 rounded-full bg-indigo-950/80 hover:bg-indigo-900 active:scale-95 text-indigo-200 hover:text-white text-xs font-heading font-extrabold border border-indigo-500/50 shadow-lg shadow-indigo-500/10 cursor-pointer transition-all min-h-[44px] min-w-[44px]"
           title="Abrir ajustes avanzados, criaturas, temas y velocidades"
         >
           <Settings className="w-4 h-4 text-pink-400 animate-spin-slow" />
-          <span>Ajustes</span>
+          <span className="hidden xs:inline">Ajustes</span>
         </button>
       </nav>
     </div>

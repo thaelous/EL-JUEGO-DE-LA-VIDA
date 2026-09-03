@@ -731,7 +731,25 @@ OO..OOO
     btnRandomSoup: document.getElementById('btn-random-soup'),
     btnOpenSettings: document.getElementById('btn-open-settings'),
     btnHeaderSettings: document.getElementById('btn-header-settings'),
+    btnHeaderTutorial: document.getElementById('btn-header-tutorial'),
     settingsModal: document.getElementById('settings-modal'),
+    // Elementos de la Intro Screen (Bienvenida)
+    introScreen: document.getElementById('intro-screen'),
+    introCanvas: document.getElementById('intro-particles-canvas'),
+    // Elementos del Tutorial Integrado en Tablero
+    tutorialPanel: document.getElementById('tutorial-integrated-panel'),
+    tutorialHighlight: document.getElementById('tutorial-highlight-zone'),
+    btnCloseIntegratedTutorial: document.getElementById('btn-close-integrated-tutorial'),
+    btnTutorialPrev: document.getElementById('btn-tutorial-prev'),
+    btnTutorialNext: document.getElementById('btn-tutorial-next'),
+    btnTutorialNextText: document.getElementById('btn-tutorial-next-text'),
+    btnTutorialNextIcon: document.getElementById('btn-tutorial-next-icon'),
+    tutorialStepBadge: document.getElementById('tutorial-step-badge'),
+    tutorialStepStatus: document.getElementById('tutorial-step-status'),
+    tutorialInlineTitle: document.getElementById('tutorial-inline-title'),
+    tutorialInlineDesc: document.getElementById('tutorial-inline-desc'),
+    tutorialDots: document.querySelectorAll('.tut-dot'),
+    chkNeverShowTutorial: document.getElementById('chk-never-show-tutorial'),
     btnCloseModal: document.getElementById('btn-close-modal'),
     btnDoneModal: document.getElementById('btn-done-modal'),
     modalTabs: document.querySelectorAll('.tab-btn'),
@@ -1146,6 +1164,10 @@ OO..OOO
     updateStatsDisplay();
   }
 
+  function togglePlay() {
+    setPlayState(!state.isRunning);
+  }
+
   function setTheme(themeKey) {
     if (!COLOR_PALETTES[themeKey]) return;
     state.theme = themeKey;
@@ -1321,6 +1343,262 @@ OO..OOO
   dom.settingsModal.addEventListener('click', (e) => {
     if (e.target === dom.settingsModal) closeSettings();
   });
+
+  /* --- 14b. PANTALLA DE BIENVENIDA (INTRO) & TUTORIAL INTERACTIVO INTEGRADO --- */
+  let tutorialCurrentStep = 0;
+  let isIntroActive = false;
+  let introAnimFrame = null;
+  let introParticles = [];
+
+  // Configuración de partículas verdes sutiles y luminosas para la pantalla de bienvenida
+  function startIntroScreen() {
+    if (!dom.introScreen || !dom.introCanvas) {
+      checkAndStartTutorial();
+      return;
+    }
+
+    isIntroActive = true;
+    dom.introScreen.style.display = 'flex';
+    dom.introScreen.classList.remove('fade-out');
+
+    const ctx = dom.introCanvas.getContext('2d');
+    let width = (dom.introCanvas.width = window.innerWidth);
+    let height = (dom.introCanvas.height = window.innerHeight);
+
+    window.addEventListener('resize', () => {
+      if (isIntroActive && dom.introCanvas) {
+        width = dom.introCanvas.width = window.innerWidth;
+        height = dom.introCanvas.height = window.innerHeight;
+      }
+    });
+
+    // Crear partículas luminosas en tonos verdes
+    introParticles = [];
+    for (let i = 0; i < 45; i++) {
+      introParticles.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        radius: 2 + Math.random() * 5.5,
+        alpha: 0.15 + Math.random() * 0.45,
+        speedX: (Math.random() - 0.5) * 0.6,
+        speedY: -(0.3 + Math.random() * 0.7),
+        pulseSpeed: 0.02 + Math.random() * 0.03,
+        pulseVal: Math.random() * Math.PI * 2,
+        color: Math.random() > 0.4 ? 'rgba(52, 211, 153, ' : 'rgba(167, 243, 208, '
+      });
+    }
+
+    function renderIntroLoop() {
+      if (!isIntroActive) return;
+      ctx.clearRect(0, 0, width, height);
+
+      introParticles.forEach(p => {
+        p.pulseVal += p.pulseSpeed;
+        const currentAlpha = Math.max(0.08, p.alpha + Math.sin(p.pulseVal) * 0.18);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `${p.color}${currentAlpha})`;
+        ctx.shadowColor = 'rgba(52, 211, 153, 0.7)';
+        ctx.shadowBlur = 12;
+        ctx.fill();
+        ctx.restore();
+
+        p.x += p.speedX;
+        p.y += p.speedY;
+
+        if (p.y < -10) {
+          p.y = height + 10;
+          p.x = Math.random() * width;
+        }
+        if (p.x < -10) p.x = width + 10;
+        if (p.x > width + 10) p.x = -10;
+      });
+
+      introAnimFrame = requestAnimationFrame(renderIntroLoop);
+    }
+
+    renderIntroLoop();
+
+    // La pantalla de bienvenida se muestra exactamente durante 3 segundos
+    setTimeout(() => {
+      endIntroScreen();
+    }, 3000);
+  }
+
+  function endIntroScreen() {
+    if (!isIntroActive) return;
+    if (dom.introScreen) {
+      dom.introScreen.classList.add('fade-out');
+      // Iniciar el tutorial integrado automáticamente sin esperas adicionales
+      checkAndStartTutorial();
+      setTimeout(() => {
+        isIntroActive = false;
+        if (introAnimFrame) cancelAnimationFrame(introAnimFrame);
+        if (dom.introScreen) dom.introScreen.style.display = 'none';
+      }, 700);
+    } else {
+      isIntroActive = false;
+      checkAndStartTutorial();
+    }
+  }
+
+  // Pasos del tutorial interactivo integrado sobre el tablero
+  const tutorialSteps = [
+    {
+      badge: 'Paso 1 de 3',
+      status: 'Crear vida',
+      title: 'Paso 1: ¡Despierta Células Vivas!',
+      desc: 'Haz clic o desliza tu dedo/cursor sobre la zona resaltada en la cuadrícula para sembrar tus primeras células orgánicas.',
+      action: 'paint',
+      setup: () => {
+        if (state.isRunning) setPlayState(false);
+        state.engine.clear();
+        state.drawMode = 'draw';
+        dom.btnDrawMode.classList.add('active');
+        dom.drawModeText.textContent = 'Modo: Dibujar';
+        if (dom.tutorialHighlight) dom.tutorialHighlight.style.display = 'flex';
+        renderCanvas();
+        updateStatsDisplay();
+      }
+    },
+    {
+      badge: 'Paso 2 de 3',
+      status: 'Ejemplo de Patrón',
+      title: 'Paso 2: Criaturas y Patrones Biológicos',
+      desc: 'Observa este oscilador Pulsar en el centro. Las células sobreviven o mueren según las leyes de Conway: nacen con 3 vecinas vivas y viven con 2 o 3.',
+      action: 'pattern',
+      setup: () => {
+        if (state.isRunning) setPlayState(false);
+        state.engine.clear();
+        if (dom.tutorialHighlight) dom.tutorialHighlight.style.display = 'none';
+        const pulsarPreset = PRESETS.find(p => p.id === 'pulsar') || PRESETS[0];
+        if (pulsarPreset) {
+          state.engine.loadPresetCentered(pulsarPreset);
+        }
+        renderCanvas();
+        updateStatsDisplay();
+      }
+    },
+    {
+      badge: 'Paso 3 de 3',
+      status: 'Evolución Dinámica',
+      title: 'Paso 3: ¡Dale Play a la Simulación!',
+      desc: 'Observa la danza biológica en movimiento. Pulsa "Comenzar a jugar" o presiona la Barra Espaciadora en cualquier momento.',
+      action: 'evolve',
+      setup: () => {
+        if (dom.tutorialHighlight) dom.tutorialHighlight.style.display = 'none';
+        if (!state.isRunning) setPlayState(true);
+      }
+    }
+  ];
+
+  function renderTutorialStep(stepIndex) {
+    tutorialCurrentStep = stepIndex;
+    const step = tutorialSteps[stepIndex];
+    if (!step) return;
+
+    if (dom.tutorialStepBadge) dom.tutorialStepBadge.textContent = step.badge;
+    if (dom.tutorialStepStatus) dom.tutorialStepStatus.textContent = step.status;
+    if (dom.tutorialInlineTitle) dom.tutorialInlineTitle.textContent = step.title;
+    if (dom.tutorialInlineDesc) dom.tutorialInlineDesc.textContent = step.desc;
+
+    if (dom.tutorialDots) {
+      dom.tutorialDots.forEach((dot, idx) => {
+        dot.classList.toggle('active', idx === stepIndex);
+      });
+    }
+
+    if (dom.btnTutorialPrev) {
+      dom.btnTutorialPrev.style.display = stepIndex === 0 ? 'none' : 'inline-flex';
+    }
+
+    if (dom.btnTutorialNextText && dom.btnTutorialNextIcon) {
+      if (stepIndex === tutorialSteps.length - 1) {
+        dom.btnTutorialNextText.textContent = 'Comenzar a jugar';
+        dom.btnTutorialNextIcon.textContent = '✨';
+      } else {
+        dom.btnTutorialNextText.textContent = 'Siguiente';
+        dom.btnTutorialNextIcon.textContent = '→';
+      }
+    }
+
+    if (typeof step.setup === 'function') {
+      step.setup();
+    }
+  }
+
+  function openTutorial() {
+    if (dom.tutorialPanel) dom.tutorialPanel.style.display = 'flex';
+    renderTutorialStep(0);
+  }
+
+  function closeTutorial() {
+    if (dom.tutorialPanel) dom.tutorialPanel.style.display = 'none';
+    if (dom.tutorialHighlight) dom.tutorialHighlight.style.display = 'none';
+
+    // Guardar preferencia de 'No volver a mostrar' si el usuario marcó la casilla
+    try {
+      if (dom.chkNeverShowTutorial && dom.chkNeverShowTutorial.checked) {
+        localStorage.setItem('conway_never_show_tutorial', 'true');
+      }
+    } catch {}
+  }
+
+  function checkAndStartTutorial() {
+    try {
+      const neverShow = localStorage.getItem('conway_never_show_tutorial') === 'true';
+      if (!neverShow) {
+        openTutorial();
+      }
+    } catch {
+      openTutorial();
+    }
+  }
+
+  // Inicializar estado de la casilla 'No volver a mostrar'
+  try {
+    if (dom.chkNeverShowTutorial) {
+      dom.chkNeverShowTutorial.checked = localStorage.getItem('conway_never_show_tutorial') === 'true';
+      dom.chkNeverShowTutorial.addEventListener('change', (e) => {
+        try {
+          if (e.target.checked) {
+            localStorage.setItem('conway_never_show_tutorial', 'true');
+          } else {
+            localStorage.removeItem('conway_never_show_tutorial');
+          }
+        } catch {}
+      });
+    }
+  } catch {}
+
+  if (dom.btnHeaderTutorial) dom.btnHeaderTutorial.addEventListener('click', openTutorial);
+  if (dom.btnCloseIntegratedTutorial) dom.btnCloseIntegratedTutorial.addEventListener('click', closeTutorial);
+
+  if (dom.btnTutorialPrev) {
+    dom.btnTutorialPrev.addEventListener('click', () => {
+      if (tutorialCurrentStep > 0) {
+        renderTutorialStep(tutorialCurrentStep - 1);
+      }
+    });
+  }
+
+  if (dom.btnTutorialNext) {
+    dom.btnTutorialNext.addEventListener('click', () => {
+      if (tutorialCurrentStep < tutorialSteps.length - 1) {
+        renderTutorialStep(tutorialCurrentStep + 1);
+      } else {
+        closeTutorial();
+      }
+    });
+  }
+
+  if (dom.tutorialDots) {
+    dom.tutorialDots.forEach((dot, idx) => {
+      dot.addEventListener('click', () => renderTutorialStep(idx));
+    });
+  }
 
   // Cambio de pestañas
   dom.modalTabs.forEach(tab => {
@@ -1537,6 +1815,8 @@ OO..OOO
     } else if (e.key === 'Escape') {
       if (state.activeStamp) {
         clearActiveStamp();
+      } else if (dom.tutorialPanel && dom.tutorialPanel.style.display !== 'none') {
+        closeTutorial();
       } else if (dom.settingsModal.classList.contains('open')) {
         closeSettings();
       }
@@ -1554,6 +1834,9 @@ OO..OOO
   setTimeout(() => {
     resizeCanvasToContainer();
   }, 50);
+
+  // Iniciar la secuencia de bienvenida envolvente (Pantalla de bienvenida verde con partículas de 3s)
+  startIntroScreen();
 
   // Iniciar bucle de animación a 60 FPS
   requestAnimationFrame(animationLoop);

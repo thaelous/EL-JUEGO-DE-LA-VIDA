@@ -13,6 +13,8 @@ import { Header } from './components/Header';
 import { CanvasGrid } from './components/CanvasGrid';
 import { BottomToolbar } from './components/BottomToolbar';
 import { SettingsModal } from './components/SettingsModal';
+import { IntroScreen } from './components/IntroScreen';
+import { BoardTutorialOverlay } from './components/BoardTutorialOverlay';
 
 export default function App() {
   // Grid resolution default: Estándar (75 x 45)
@@ -52,6 +54,67 @@ export default function App() {
 
   // Dedicated Settings Modal state
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+
+  // Intro Screen State (3 segundos de bienvenida en fondo verde sólido con partículas)
+  const [showIntro, setShowIntro] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('conway_never_show_tutorial') !== 'true';
+    } catch {
+      return true;
+    }
+  });
+
+  // Interactive Guided Tutorial directly integrated on board
+  const [isTutorialOpen, setIsTutorialOpen] = useState<boolean>(false);
+
+  const handleIntroComplete = useCallback(() => {
+    setShowIntro(false);
+    try {
+      const neverShow = localStorage.getItem('conway_never_show_tutorial') === 'true';
+      if (!neverShow) {
+        setIsTutorialOpen(true);
+      }
+    } catch {
+      setIsTutorialOpen(true);
+    }
+  }, []);
+
+  const handleCloseTutorial = useCallback((neverShowAgain: boolean) => {
+    setIsTutorialOpen(false);
+    try {
+      if (neverShowAgain) {
+        localStorage.setItem('conway_never_show_tutorial', 'true');
+      }
+    } catch {
+      // Ignored if local storage is restricted
+    }
+  }, []);
+
+  const handleTutorialStepChange = useCallback(
+    (stepIndex: number) => {
+      if (!engineRef.current) return;
+      if (stepIndex === 0) {
+        // Modo Crear vida: pausar, limpiar y modo dibujar
+        setIsRunning(false);
+        engineRef.current.clear();
+        setDrawMode('draw');
+        setStats(engineRef.current.getStats());
+      } else if (stepIndex === 1) {
+        // Ejemplo de Patrón biológico (Pulsar)
+        setIsRunning(false);
+        engineRef.current.clear();
+        const pulsarPreset = PRESETS.find((p) => p.id === 'pulsar') || PRESETS[0];
+        if (pulsarPreset) {
+          engineRef.current.loadPresetCentered(pulsarPreset);
+        }
+        setStats(engineRef.current.getStats());
+      } else if (stepIndex === 2) {
+        // Evolución Dinámica: dar play a la simulación
+        setIsRunning(true);
+      }
+    },
+    []
+  );
 
   // Live Simulation Statistics
   const [stats, setStats] = useState<SimulationStats>(() => engine.getStats());
@@ -191,6 +254,8 @@ export default function App() {
         if (activeStamp) {
           e.preventDefault();
           setActiveStamp(null);
+        } else if (isTutorialOpen) {
+          handleCloseTutorial(false);
         } else if (isSettingsOpen) {
           setIsSettingsOpen(false);
         }
@@ -199,13 +264,14 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleTogglePlay, handleStep, isRunning, activeStamp, handleRotateStamp, isSettingsOpen]);
+  }, [handleTogglePlay, handleStep, isRunning, activeStamp, handleRotateStamp, isSettingsOpen, isTutorialOpen, handleCloseTutorial]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between antialiased selection:bg-pink-500/30 font-sans p-2 sm:p-4 gap-2.5 sm:gap-3">
       {/* 1. Playful & Clean Header */}
       <Header
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenTutorial={() => setIsTutorialOpen(true)}
         isRunning={isRunning}
         currentRuleset={currentRuleset}
         stats={stats}
@@ -223,6 +289,13 @@ export default function App() {
           activeStamp={activeStamp}
           onClearStamp={() => setActiveStamp(null)}
           onStatsUpdate={handleStatsUpdate}
+        />
+
+        {/* Tutorial Interactivo Integrado directamente sobre la cuadrícula */}
+        <BoardTutorialOverlay
+          isOpen={isTutorialOpen}
+          onClose={handleCloseTutorial}
+          onStepChange={handleTutorialStepChange}
         />
       </main>
 
@@ -267,6 +340,9 @@ export default function App() {
         isRunning={isRunning}
         totalCells={gridSize.cols * gridSize.rows}
       />
+
+      {/* 5. Pantalla de Bienvenida (Intro Envolvente Verde Sólido con Partículas de 3 Segundos) */}
+      {showIntro && <IntroScreen onComplete={handleIntroComplete} />}
     </div>
   );
 }
