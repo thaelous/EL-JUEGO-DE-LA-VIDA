@@ -643,7 +643,14 @@ OO..OOO
     fpsAccumulator: 0,
     fpsCounter: 0,
     actualFps: 0,
-    particles: []
+    particles: [],
+    // Zoom y Desplazamiento interactivo (Pan)
+    zoom: 1.0,
+    panX: 0,
+    panY: 0,
+    minZoom: 0.6,
+    maxZoom: 8.0,
+    isPanMode: false
   };
 
   // Inicializar partículas flotantes bioluminiscentes y etéreas (pequeñas, medianas y grandes)
@@ -722,6 +729,13 @@ OO..OOO
     canvas: document.getElementById('life-canvas'),
     stampBanner: document.getElementById('stamp-banner'),
     stampBannerName: document.getElementById('stamp-banner-name'),
+    // Controles de Zoom y Pan
+    zoomControls: document.getElementById('canvas-zoom-controls'),
+    btnZoomIn: document.getElementById('btn-zoom-in'),
+    btnZoomOut: document.getElementById('btn-zoom-out'),
+    btnZoomReset: document.getElementById('btn-zoom-reset'),
+    zoomLevelText: document.getElementById('zoom-level-text'),
+    btnPanMode: document.getElementById('btn-pan-mode'),
     btnPlay: document.getElementById('btn-play'),
     playText: document.getElementById('play-btn-text'),
     btnStep: document.getElementById('btn-step'),
@@ -964,31 +978,51 @@ OO..OOO
       }
     }
 
-    // 3. Líneas sutiles de la placa (opcional)
-    if (state.showGridLines && cellW >= 6) {
-      ctx.strokeStyle = 'rgba(20, 83, 45, 0.35)';
-      ctx.lineWidth = 0.6;
+    // 3. Renderizar Cuadrícula, Líneas y Células Orgánicas 3D con Zoom y Pan
+    ctx.save();
+    ctx.translate(state.panX, state.panY);
+    ctx.scale(state.zoom, state.zoom);
+
+    // Contorno exterior que delimita la placa de cultivo
+    ctx.strokeStyle = 'rgba(52, 211, 153, 0.28)';
+    ctx.lineWidth = Math.max(0.8, 1.5 / state.zoom);
+    ctx.strokeRect(0, 0, width, height);
+
+    // Líneas sutiles de la placa (opcional)
+    if (state.showGridLines && (cellW * state.zoom) >= 4) {
+      ctx.strokeStyle = 'rgba(20, 83, 45, 0.4)';
+      ctx.lineWidth = Math.max(0.35, 0.6 / state.zoom);
       ctx.beginPath();
       for (let x = 0; x <= cols; x++) {
         const px = Math.round(x * cellW);
         ctx.moveTo(px, 0);
-        ctx.lineTo(px, dom.canvas.height);
+        ctx.lineTo(px, height);
       }
       for (let y = 0; y <= rows; y++) {
         const py = Math.round(y * cellH);
         ctx.moveTo(0, py);
-        ctx.lineTo(dom.canvas.width, py);
+        ctx.lineTo(width, py);
       }
       ctx.stroke();
     }
 
-    // 4. Renderizar Células Orgánicas 3D
+    // 4. Renderizar Células Orgánicas 3D con recorte inteligente (Viewport Culling para 60 FPS fluidos)
+    const minVisX = -state.panX / state.zoom;
+    const maxVisX = (width - state.panX) / state.zoom;
+    const minVisY = -state.panY / state.zoom;
+    const maxVisY = (height - state.panY) / state.zoom;
+
+    const startCol = Math.max(0, Math.floor((minVisX / width) * cols));
+    const endCol = Math.min(cols, Math.ceil((maxVisX / width) * cols) + 1);
+    const startRow = Math.max(0, Math.floor((minVisY / height) * rows));
+    const endRow = Math.min(rows, Math.ceil((maxVisY / height) * rows) + 1);
+
     const grid = engine.current;
-    for (let y = 0; y < rows; y++) {
+    for (let y = startRow; y < endRow; y++) {
       const rowOff = y * cols;
       const cy = y * cellH + cellH * 0.5;
 
-      for (let x = 0; x < cols; x++) {
+      for (let x = startCol; x < endCol; x++) {
         const val = grid[rowOff + x];
         if (val === 0) continue;
 
@@ -1051,7 +1085,7 @@ OO..OOO
       }
     }
 
-    // 4. Previsualización Fantasma del Sello Activo o Cursor
+    // 5. Previsualización Fantasma del Sello Activo o Cursor
     if (state.activeStamp && state.hoverCell) {
       const preset = state.activeStamp.preset;
       const rot = state.activeStamp.rotation;
@@ -1064,7 +1098,7 @@ OO..OOO
       ctx.save();
       ctx.fillStyle = 'rgba(244, 114, 182, 0.65)';
       ctx.strokeStyle = '#ec4899';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = Math.max(1, 1.5 / state.zoom);
 
       for (let r = 0; r < pRows; r++) {
         for (let c = 0; c < pCols; c++) {
@@ -1093,10 +1127,13 @@ OO..OOO
       // Indicador de celda bajo el cursor
       const hx = state.hoverCell.x * cellW;
       const hy = state.hoverCell.y * cellH;
-      ctx.strokeStyle = state.drawMode === 'erase' ? 'rgba(244, 63, 94, 0.6)' : 'rgba(56, 189, 248, 0.5)';
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = state.drawMode === 'erase' ? 'rgba(244, 63, 94, 0.7)' : 'rgba(56, 189, 248, 0.6)';
+      ctx.lineWidth = Math.max(1, 1.5 / state.zoom);
       ctx.strokeRect(hx, hy, cellW, cellH);
     }
+
+    // Restaurar transformación de zoom y pan
+    ctx.restore();
   }
 
   /* --- 9. BUCLE DE SIMULACIÓN Y ANIMACIÓN --- */
@@ -1209,6 +1246,7 @@ OO..OOO
       if (dom.canvas.width !== targetW || dom.canvas.height !== targetH) {
         dom.canvas.width = targetW;
         dom.canvas.height = targetH;
+        clampPan();
       }
       renderCanvas();
     }
@@ -1218,9 +1256,108 @@ OO..OOO
     window.requestAnimationFrame(resizeCanvasToContainer);
   });
 
-  /* --- 12. GESTIÓN DE RATÓN Y EVENTOS TÁCTILES --- */
+  /* --- 11b. GESTIÓN DE ZOOM Y DESPLAZAMIENTO (PAN) --- */
+  function clampPan() {
+    const w = dom.canvas.width;
+    const h = dom.canvas.height;
+    if (!w || !h) return;
+
+    // Permitir desplazarse cómodamente manteniendo al menos 20% del tablero visible en pantalla
+    const minPanX = w * 0.2 - w * state.zoom;
+    const maxPanX = w * 0.8;
+    const minPanY = h * 0.2 - h * state.zoom;
+    const maxPanY = h * 0.8;
+
+    state.panX = Math.max(minPanX, Math.min(maxPanX, state.panX));
+    state.panY = Math.max(minPanY, Math.min(maxPanY, state.panY));
+  }
+
+  function setZoom(newZoom, pivotX, pivotY) {
+    const clampedZoom = Math.max(state.minZoom, Math.min(state.maxZoom, newZoom));
+    if (Math.abs(clampedZoom - state.zoom) < 0.0001) return;
+
+    const px = pivotX !== undefined ? pivotX : (dom.canvas.width * 0.5);
+    const py = pivotY !== undefined ? pivotY : (dom.canvas.height * 0.5);
+
+    const scaleRatio = clampedZoom / state.zoom;
+    state.panX = px - (px - state.panX) * scaleRatio;
+    state.panY = py - (py - state.panY) * scaleRatio;
+    state.zoom = clampedZoom;
+
+    clampPan();
+    updateZoomDisplay();
+    renderCanvas();
+  }
+
+  function zoomIn() {
+    setZoom(state.zoom * 1.25);
+  }
+
+  function zoomOut() {
+    setZoom(state.zoom / 1.25);
+  }
+
+  function resetZoom() {
+    state.zoom = 1.0;
+    state.panX = 0;
+    state.panY = 0;
+    updateZoomDisplay();
+    renderCanvas();
+  }
+
+  function updateZoomDisplay() {
+    if (dom.zoomLevelText) {
+      const pct = Math.round(state.zoom * 100);
+      dom.zoomLevelText.textContent = `${pct}%`;
+    }
+  }
+
+  function togglePanMode(force) {
+    state.isPanMode = force !== undefined ? force : !state.isPanMode;
+    if (dom.btnPanMode) {
+      dom.btnPanMode.classList.toggle('active', state.isPanMode);
+    }
+    if (dom.canvasStage) {
+      dom.canvasStage.classList.toggle('pan-mode', state.isPanMode);
+    }
+  }
+
+  // Conectar botones visuales de zoom
+  if (dom.btnZoomIn) {
+    dom.btnZoomIn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      zoomIn();
+    });
+  }
+  if (dom.btnZoomOut) {
+    dom.btnZoomOut.addEventListener('click', (e) => {
+      e.stopPropagation();
+      zoomOut();
+    });
+  }
+  if (dom.btnZoomReset) {
+    dom.btnZoomReset.addEventListener('click', (e) => {
+      e.stopPropagation();
+      resetZoom();
+    });
+  }
+  if (dom.btnPanMode) {
+    dom.btnPanMode.addEventListener('click', (e) => {
+      e.stopPropagation();
+      togglePanMode();
+    });
+  }
+
+  /* --- 12. GESTIÓN DE RATÓN, ZOOM Y EVENTOS TÁCTILES --- */
   let isPointerDown = false;
   let pointerButton = 0;
+  let isPanning = false;
+  let panStartClient = { x: 0, y: 0 };
+  let lastActionCell = null;
+  let isPinching = false;
+  let lastPinchDist = 0;
+  let lastPinchMid = { x: 0, y: 0 };
+  const activePointers = new Map();
 
   function getCellCoordinates(clientX, clientY) {
     const rect = dom.canvas.getBoundingClientRect();
@@ -1232,14 +1369,47 @@ OO..OOO
       return null;
     }
 
-    state.mouseCanvasPos = {
-      x: px * (dom.canvas.width / rect.width),
-      y: py * (dom.canvas.height / rect.height)
-    };
+    const screenX = px * (dom.canvas.width / rect.width);
+    const screenY = py * (dom.canvas.height / rect.height);
+    state.mouseCanvasPos = { x: screenX, y: screenY };
 
-    const x = Math.floor((px / rect.width) * state.engine.cols);
-    const y = Math.floor((py / rect.height) * state.engine.rows);
+    // Conversión de coordenadas de pantalla a espacio mundo con Zoom y Pan
+    const worldX = (screenX - state.panX) / state.zoom;
+    const worldY = (screenY - state.panY) / state.zoom;
+
+    const x = Math.floor((worldX / dom.canvas.width) * state.engine.cols);
+    const y = Math.floor((worldY / dom.canvas.height) * state.engine.rows);
+
+    if (x < 0 || x >= state.engine.cols || y < 0 || y >= state.engine.rows) {
+      return null;
+    }
+
     return { x, y };
+  }
+
+  function plotLine(x0, y0, x1, y1, callback) {
+    const dx = Math.abs(x1 - x0);
+    const dy = Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1;
+    const sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy;
+
+    let cx = x0;
+    let cy = y0;
+
+    while (true) {
+      callback(cx, cy);
+      if (cx === x1 && cy === y1) break;
+      const e2 = 2 * err;
+      if (e2 > -dy) {
+        err -= dy;
+        cx += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        cy += sy;
+      }
+    }
   }
 
   function handlePointerAction(clientX, clientY) {
@@ -1262,22 +1432,137 @@ OO..OOO
 
     // Dibujar o borrar
     const shouldErase = state.drawMode === 'erase' || pointerButton === 2;
-    state.engine.setCell(cell.x, cell.y, shouldErase ? 0 : 1);
+    const targetVal = shouldErase ? 0 : 1;
+
+    if (lastActionCell) {
+      plotLine(lastActionCell.x, lastActionCell.y, cell.x, cell.y, (x, y) => {
+        if (x >= 0 && x < state.engine.cols && y >= 0 && y < state.engine.rows) {
+          state.engine.setCell(x, y, targetVal);
+        }
+      });
+    } else {
+      state.engine.setCell(cell.x, cell.y, targetVal);
+    }
+
+    lastActionCell = cell;
     updateStatsDisplay();
     renderCanvas();
   }
 
-  dom.canvasStage.addEventListener('pointerdown', (e) => {
-    isPointerDown = true;
-    pointerButton = e.button;
-    handlePointerAction(e.clientX, e.clientY);
-  });
+  // Zoom en PC con rueda del ratón (scroll) directamente sobre el lienzo
+  dom.canvasStage.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = dom.canvas.getBoundingClientRect();
+    const pivotX = (e.clientX - rect.left) * (dom.canvas.width / rect.width);
+    const pivotY = (e.clientY - rect.top) * (dom.canvas.height / rect.height);
 
-  window.addEventListener('pointerup', () => {
-    isPointerDown = false;
+    const zoomDelta = e.deltaY < 0 ? 1.15 : (1 / 1.15);
+    setZoom(state.zoom * zoomDelta, pivotX, pivotY);
+  }, { passive: false });
+
+  // Eventos de Puntero (Mouse, Touch y Stylus unificados)
+  dom.canvasStage.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('#canvas-zoom-controls') || e.target.closest('#tutorial-integrated-panel') || e.target.closest('#stamp-banner')) {
+      return;
+    }
+
+    try {
+      dom.canvasStage.setPointerCapture(e.pointerId);
+    } catch {}
+
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (activePointers.size === 1) {
+      pointerButton = e.button;
+      const wantsPan = state.isPanMode || e.button === 1 || e.button === 2;
+
+      if (wantsPan) {
+        isPanning = true;
+        panStartClient = { x: e.clientX, y: e.clientY };
+        dom.canvasStage.classList.add('panning');
+      } else {
+        isPointerDown = true;
+        lastActionCell = null;
+        handlePointerAction(e.clientX, e.clientY);
+      }
+    } else if (activePointers.size === 2) {
+      // Detección táctil de dos dedos: Activar Pinch-to-Zoom y Desplazamiento (Pan)
+      isPointerDown = false;
+      lastActionCell = null;
+      isPanning = true;
+      isPinching = true;
+      dom.canvasStage.classList.add('panning');
+
+      const ptrs = Array.from(activePointers.values());
+      lastPinchDist = Math.hypot(ptrs[1].x - ptrs[0].x, ptrs[1].y - ptrs[0].y);
+      lastPinchMid = {
+        x: (ptrs[0].x + ptrs[1].x) * 0.5,
+        y: (ptrs[0].y + ptrs[1].y) * 0.5
+      };
+    }
   });
 
   dom.canvasStage.addEventListener('pointermove', (e) => {
+    if (activePointers.has(e.pointerId)) {
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+
+    // Gestos táctiles de 2 dedos (Pinch-to-zoom y Pan simultáneo en celulares)
+    if (activePointers.size >= 2 && isPinching) {
+      const ptrs = Array.from(activePointers.values());
+      const p1 = ptrs[0];
+      const p2 = ptrs[1];
+      const currentDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      const currentMid = {
+        x: (p1.x + p2.x) * 0.5,
+        y: (p1.y + p2.y) * 0.5
+      };
+
+      if (lastPinchDist > 0 && currentDist > 0) {
+        const scaleRatio = currentDist / lastPinchDist;
+        const newZoom = Math.max(state.minZoom, Math.min(state.maxZoom, state.zoom * scaleRatio));
+
+        const rect = dom.canvas.getBoundingClientRect();
+        const pivotX = (currentMid.x - rect.left) * (dom.canvas.width / rect.width);
+        const pivotY = (currentMid.y - rect.top) * (dom.canvas.height / rect.height);
+
+        const actualRatio = newZoom / state.zoom;
+        state.panX = pivotX - (pivotX - state.panX) * actualRatio;
+        state.panY = pivotY - (pivotY - state.panY) * actualRatio;
+        state.zoom = newZoom;
+
+        // Desplazamiento continuo con el punto medio de los dos dedos
+        const dMidX = (currentMid.x - lastPinchMid.x) * (dom.canvas.width / rect.width);
+        const dMidY = (currentMid.y - lastPinchMid.y) * (dom.canvas.height / rect.height);
+        state.panX += dMidX;
+        state.panY += dMidY;
+
+        lastPinchDist = currentDist;
+        lastPinchMid = currentMid;
+
+        clampPan();
+        updateZoomDisplay();
+        renderCanvas();
+      }
+      return;
+    }
+
+    // Desplazamiento (Pan) con 1 dedo o ratón
+    if (isPanning && activePointers.size === 1) {
+      const rect = dom.canvas.getBoundingClientRect();
+      const dx = (e.clientX - panStartClient.x) * (dom.canvas.width / rect.width);
+      const dy = (e.clientY - panStartClient.y) * (dom.canvas.height / rect.height);
+
+      state.panX += dx;
+      state.panY += dy;
+      panStartClient = { x: e.clientX, y: e.clientY };
+
+      clampPan();
+      renderCanvas();
+      return;
+    }
+
+    // Comportamiento normal: pintar o hover sobre la cuadrícula
     const cell = getCellCoordinates(e.clientX, e.clientY);
     state.hoverCell = cell;
 
@@ -1288,10 +1573,39 @@ OO..OOO
     }
   });
 
-  dom.canvasStage.addEventListener('pointerleave', () => {
-    state.hoverCell = null;
-    state.mouseCanvasPos = null;
+  function handlePointerEnd(e) {
+    if (activePointers.has(e.pointerId)) {
+      try {
+        dom.canvasStage.releasePointerCapture(e.pointerId);
+      } catch {}
+      activePointers.delete(e.pointerId);
+    }
+
+    if (activePointers.size === 0) {
+      isPointerDown = false;
+      isPanning = false;
+      isPinching = false;
+      lastActionCell = null;
+      lastPinchDist = 0;
+      dom.canvasStage.classList.remove('panning');
+    } else if (activePointers.size === 1) {
+      isPinching = false;
+      lastPinchDist = 0;
+      const remaining = Array.from(activePointers.values())[0];
+      panStartClient = { x: remaining.x, y: remaining.y };
+    }
     renderCanvas();
+  }
+
+  dom.canvasStage.addEventListener('pointerup', handlePointerEnd);
+  dom.canvasStage.addEventListener('pointercancel', handlePointerEnd);
+
+  dom.canvasStage.addEventListener('pointerleave', () => {
+    if (!isPointerDown && !isPanning) {
+      state.hoverCell = null;
+      state.mouseCanvasPos = null;
+      renderCanvas();
+    }
   });
 
   dom.canvasStage.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -1806,6 +2120,15 @@ OO..OOO
         updateStatsDisplay();
         renderCanvas();
       }
+    } else if (e.key === '+' || e.key === '=') {
+      e.preventDefault();
+      zoomIn();
+    } else if (e.key === '-' || e.key === '_') {
+      e.preventDefault();
+      zoomOut();
+    } else if (e.key === '0') {
+      e.preventDefault();
+      resetZoom();
     } else if (e.key === 'r' || e.key === 'R') {
       if (state.activeStamp) {
         e.preventDefault();

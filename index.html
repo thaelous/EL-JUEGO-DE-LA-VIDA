@@ -143,6 +143,33 @@
             </label>
           </div>
         </div>
+
+        <!-- Controles Visuales Flotantes de Zoom y Desplazamiento (Pan) -->
+        <div id="canvas-zoom-controls" class="canvas-zoom-controls" role="toolbar" aria-label="Controles de Zoom y Desplazamiento">
+          <button id="btn-zoom-in" class="btn-zoom-tool" type="button" title="Acercar zoom (+)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+          <button id="btn-zoom-reset" class="btn-zoom-tool zoom-level-badge" type="button" title="Restablecer zoom al 100%">
+            <span id="zoom-level-text">100%</span>
+          </button>
+          <button id="btn-zoom-out" class="btn-zoom-tool" type="button" title="Alejar zoom (-)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+          <button id="btn-pan-mode" class="btn-zoom-tool btn-pan-toggle" type="button" title="Alternar modo Desplazar / Mano">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path>
+              <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"></path>
+              <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"></path>
+              <path d="M18 8a2 2 0 0 1 2 2v4a6 6 0 0 1-6 6h-2a6 6 0 0 1-6-6v-1"></path>
+            </svg>
+            <span class="pan-toggle-label">Mover</span>
+          </button>
+        </div>
       </main>
 
       <!-- 3. Barra Flotante Inferior -->
@@ -448,9 +475,12 @@
             </div>
 
             <div class="config-card" style="margin-top: 10px;">
-              <span class="config-card-title">⌨️ Atajos de Teclado</span>
+              <span class="config-card-title">⌨️ Atajos y Gestos de Interacción</span>
               <ul style="list-style: none; font-size: 0.8rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 6px;">
-                <li><strong style="color: #fff;">Espacio:</strong> Iniciar o pausar la simulación en cualquier momento.</li>
+                <li><strong style="color: #fff;">Espacio:</strong> Iniciar o pausar la simulación.</li>
+                <li><strong style="color: #fff;">Rueda del Ratón / Pellizco (Pinch):</strong> Acercar o alejar el zoom de la cuadrícula.</li>
+                <li><strong style="color: #fff;">Arrastrar con 2 dedos / Clic derecho / Modo Mover:</strong> Desplazar (pan) el tablero.</li>
+                <li><strong style="color: #fff;">+ / - / 0:</strong> Acercar, alejar o restablecer vista (100%).</li>
                 <li><strong style="color: #fff;">Flecha Derecha:</strong> Avanzar exactamente 1 generación (paso a paso).</li>
                 <li><strong style="color: #fff;">R:</strong> Girar la criatura seleccionada 90° en modo sello.</li>
                 <li><strong style="color: #fff;">Escape:</strong> Cerrar menú de ajustes o cancelar el modo sello.</li>
